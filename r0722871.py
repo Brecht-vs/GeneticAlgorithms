@@ -142,7 +142,7 @@ class r0722871:
 	def optimize(self, filename):
 		# Read distance matrix from file.
 		file = open(filename)
-		distanceMatrix = np.loadtxt(str(file), delimiter=",")
+		distanceMatrix = np.loadtxt(file, delimiter=",")
 		file.close()
 
 		# Your code here.
