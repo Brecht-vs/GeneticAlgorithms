@@ -143,6 +143,8 @@ class r0722871:
 		# Read distance matrix from file.
 		file = open(filename)
 		distanceMatrix = np.loadtxt(file, delimiter=",")
+		distanceMatrix[distanceMatrix > 1e308] = 1000000
+		print(distanceMatrix)
 		file.close()
 
 		# Your code here.
@@ -196,4 +198,4 @@ class r0722871:
 
 test = r0722871()
 
-test.optimize('tour29.csv')
+test.optimize('tour5.csv')
