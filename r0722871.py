@@ -1,4 +1,7 @@
+import math
+import operator
 import random
+
 import numpy as np
 import Reporter
 
@@ -31,8 +34,9 @@ class Solver:
 	def __init__(self, tsp):
 		self.lambdaa = 1000			# Population size
 		self.mu = 500				# Offspring size
-		self.k = 3					# Tournament selection
-		self.k2 = 3					# K-top elimination
+		self.k = 14					# Tournament selection
+		self.k2 = 7					# K-top elimination
+		self.eliteSize = 1			# Number of elite candidate solutions that goes to next iteration
 		self.intMax = 500			# Boundary of the domain, not intended to be changed.
 		self.nbIterations = 100			# Maximum number of iterations
 
@@ -40,8 +44,44 @@ class Solver:
 		for i in range(self.lambdaa):
 			self.population[i] = Individual(tsp)
 
+	# Rank candidates
+	def rankCandidates(self, tsp):
+		lengths = {}
+		candidates = self.population
+		# for i in range(0, len(candidates)):
+		# 	lengths[i] = tsp.length(candidates[i])
+
+		l = list(candidates)
+		l.sort(key=lambda x: tsp.length(x))
+		combinedSorted = np.array(l)
+
+		return combinedSorted
+
 	# k-Tournament selection
-	def select(self, tsp):
+	def select(self, ranked_population, iteration):
+		result = []
+
+		# Set up probability distribution function
+		pdf = []
+		a = math.log(0.99**iteration)/(len(ranked_population) - 1)
+		for i in range(1, len(ranked_population)):
+			pdf.append(math.exp(a*(i - 1)))
+
+		# Elitism
+		for i in range(0, self.eliteSize):
+			result.append(ranked_population[i])
+
+		# Select other candidates
+		for i in range(0, len(ranked_population) - self.eliteSize):
+			myRandom = random.random()
+			for index in range(0, len(ranked_population)):
+				if myRandom < pdf[index]:
+					result.append(ranked_population[index])
+					break
+
+		return result
+
+	def selectOld(self, tsp):
 		selected = np.random.choice(self.population, self.k, False)
 
 		values = list(map(tsp.length, selected))
@@ -107,7 +147,7 @@ class Solver:
 	def mutate(self, ind):
 		if random.random() < ind.alpha:
 			# Randomly swap two elements
-			for l in range(2):
+			for l in range(5):
 				i = random.randrange(1, len(ind.path))
 				j = random.randrange(1, len(ind.path))
 
@@ -120,17 +160,26 @@ class Solver:
 	def eliminate(self, tsp, population, offspring):
 		combined = np.concatenate([population, offspring])
 
-		while combined.size > self.lambdaa:
+		# combinedSorted = combined[np.apply_along_axis(lambda l: tsp.length(l), 0, combined).argsort()]
+		# np.sorted(combined, key=lambda x: tsp.length(x))
 
-			selected = np.random.choice(combined, self.k2, False)
+		l = list(combined)
+		l.sort(key=lambda x: tsp.length(x))
+		combinedSorted = np.array(l)
+		# combinedSorted = sorted(combined, key=lambda x: tsp.length(x))
+		result = combinedSorted[0:self.lambdaa]
 
-			values = list(map(lambda a: tsp.length(a), selected))
+		# while combined.size > self.lambdaa:
+		#
+		# 	selected = np.random.choice(combined, self.k2, False)
+		#
+		# 	values = list(map(lambda a: tsp.length(a), selected))
+		#
+		# 	maxIndex = values.index(max(values))
+		#
+		# 	combined = np.delete(combined, maxIndex)
 
-			maxIndex = values.index(max(values))
-
-			combined = np.delete(combined, maxIndex)
-
-		return combined
+		return result
 
 
 class r0722871:
@@ -143,22 +192,25 @@ class r0722871:
 		# Read distance matrix from file.
 		file = open(filename)
 		distanceMatrix = np.loadtxt(file, delimiter=",")
-		distanceMatrix[distanceMatrix > 1e308] = 1000000
-		print(distanceMatrix)
 		file.close()
 
 		# Your code here.
+		distanceMatrix[distanceMatrix > 1e308] = 100000000
 		tsp = TravelingSalespersonProblem(distanceMatrix)
 		solver = Solver(tsp)
 
-		numberOfIterations = 0
+		iteration = 0
 		while(True):
 			# Your code here.
+
 			# Recombination
 			offspring = np.empty(solver.mu, Individual)
+			rankedPopulation = solver.rankCandidates(tsp)
+			selected = solver.select(rankedPopulation, iteration)
+
 			for j in range(solver.mu):
-				p1 = solver.select(tsp)
-				p2 = solver.select(tsp)
+				p1 = selected[j]
+				p2 = selected[len(selected)-j-1]
 
 				offspring[j] = solver.recombine(tsp, p1, p2)
 				solver.mutate(offspring[j])
@@ -181,8 +233,8 @@ class r0722871:
 			bestIndex = objectives.index(bestObjective)
 			bestSolution = solver.population[bestIndex].path
 
-			print(numberOfIterations, "Mean length: ", meanObjective, " Best fitnesses: ", bestObjective)
-			numberOfIterations += 1
+			print(iteration, "Mean length: ", meanObjective, " Best fitnesses: ", bestObjective)
+			iteration += 1
 			# Call the reporter with:
 			#  - the mean objective function value of the population
 			#  - the best objective function value of the population
@@ -198,4 +250,4 @@ class r0722871:
 
 test = r0722871()
 
-test.optimize('tour5.csv')
+test.optimize('tour29.csv')
