@@ -25,6 +25,7 @@ class Individual:
 		self.path = np.random.permutation(range(1, tsp.dimension[0]))
 		self.path = np.concatenate(([0], self.path))
 		self.alpha = 0.2
+		self.mutationStep = 4
 
 	def print(self):
 		print("Ind Path: ", self.path)
@@ -34,9 +35,9 @@ class Solver:
 	def __init__(self, tsp):
 		self.lambdaa = 1000			# Population size
 		self.mu = 500				# Offspring size
-		self.k = 14					# Tournament selection
-		self.k2 = 7					# K-top elimination
-		self.eliteSize = 1			# Number of elite candidate solutions that goes to next iteration
+		# self.k = 14					# Tournament selection
+		# self.k2 = 7					# K-top elimination
+		self.eliteSize = 0			# Number of elite candidate solutions that goes to next iteration
 		self.intMax = 500			# Boundary of the domain, not intended to be changed.
 		self.nbIterations = 100			# Maximum number of iterations
 
@@ -81,14 +82,14 @@ class Solver:
 
 		return result
 
-	def selectOld(self, tsp):
-		selected = np.random.choice(self.population, self.k, False)
-
-		values = list(map(tsp.length, selected))
-
-		minIndex = values.index(min(values))
-
-		return selected[minIndex]
+	# def selectOld(self, tsp):
+	# 	selected = np.random.choice(self.population, self.k, False)
+	#
+	# 	values = list(map(tsp.length, selected))
+	#
+	# 	minIndex = values.index(min(values))
+	#
+	# 	return selected[minIndex]
 
 	# PMX crossover
 	def recombine(self, tsp, p1, p2):
@@ -146,14 +147,20 @@ class Solver:
 
 	def mutate(self, ind):
 		if random.random() < ind.alpha:
-			# Randomly swap two elements
-			for l in range(5):
-				i = random.randrange(1, len(ind.path))
-				j = random.randrange(1, len(ind.path))
+			# Inverse mutation: reverse order of sub path
+			i = random.randrange(1, len(ind.path) - ind.mutationStep-1)
+			j = i + ind.mutationStep
 
-				temp = ind.path[i]
-				ind.path[i] = ind.path[j]
-				ind.path[j] = temp
+			ind.path[i:j] = ind.path[i:j][::-1]
+
+			# Randomly swap two elements
+			# for l in range(5):
+			# 	i = random.randrange(1, len(ind.path))
+			# 	j = random.randrange(1, len(ind.path))
+			#
+			# 	temp = ind.path[i]
+			# 	ind.path[i] = ind.path[j]
+			# 	ind.path[j] = temp
 		return
 
 	# lambda + mu k-tournament elimination
