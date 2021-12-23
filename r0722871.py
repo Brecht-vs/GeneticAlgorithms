@@ -91,8 +91,31 @@ class Solver:
 	#
 	# 	return selected[minIndex]
 
-	# PMX crossover
+	# OX crossover
 	def recombine(self, tsp, p1, p2):
+		childP1Path = []
+
+		# Choose crossover points
+		geneA = 1 + int(random.random() * len(p1.path))
+		geneB = 1 + int(random.random() * len(p1.path))
+		startGene = min(geneA, geneB)
+		endGene = max(geneA, geneB)
+		# print(geneA)
+
+		for i in range(startGene, endGene):
+			childP1Path.append(p1.path[i])
+
+		childP2Path = [item for item in p2.path if item not in childP1Path]
+
+		childPath = childP1Path + childP2Path
+
+		childInd = Individual(tsp)
+		childInd.path = np.array(childPath)
+		# print(childPath)
+		return childInd
+
+	# PMX crossover
+	def recombineOld(self, tsp, p1, p2):
 		# https://www.youtube.com/watch?v=ZtaHg1C25Kk
 		a = random.randint(1, tsp.dimension[0] - 1)
 		b = random.randint(1, tsp.dimension[0] - 1)
