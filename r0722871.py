@@ -36,7 +36,7 @@ class Solver:
 		self.lambdaa = 1000			# Population size
 		self.mu = 500				# Offspring size
 		# self.k = 14					# Tournament selection
-		# self.k2 = 7					# K-top elimination
+		self.k2 = 3					# K-top elimination
 		self.eliteSize = 0			# Number of elite candidate solutions that goes to next iteration
 		self.intMax = 500			# Boundary of the domain, not intended to be changed.
 		self.nbIterations = 100			# Maximum number of iterations
@@ -163,8 +163,8 @@ class Solver:
 			# 	ind.path[j] = temp
 		return
 
-	# lambda + mu k-tournament elimination
-	def eliminate(self, tsp, population, offspring):
+	# lambda + mu elimination
+	def eliminateNew(self, tsp, population, offspring):
 		combined = np.concatenate([population, offspring])
 
 		# combinedSorted = combined[np.apply_along_axis(lambda l: tsp.length(l), 0, combined).argsort()]
@@ -187,6 +187,21 @@ class Solver:
 		# 	combined = np.delete(combined, maxIndex)
 
 		return result
+
+	# lambda + mu k-tournament elimination
+	def eliminate(self, tsp, population, offspring):
+		combined = np.concatenate([population, offspring])
+
+		while combined.size > self.lambdaa:
+
+			selected = np.random.choice(combined, self.k2, False)
+
+			values = list(map(lambda a: tsp.length(a), selected))
+
+			maxIndex = values.index(max(values))
+
+			combined = np.delete(combined, maxIndex)
+		return combined
 
 
 class r0722871:
