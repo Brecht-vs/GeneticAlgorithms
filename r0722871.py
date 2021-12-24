@@ -1,6 +1,6 @@
 import math
-import operator
 import random
+from statistics import mean
 
 import numpy as np
 import Reporter
@@ -10,6 +10,7 @@ class TravelingSalespersonProblem:
 	def __init__(self, distance_matrix):
 		self.cost = distance_matrix
 		self.dimension = distance_matrix.shape
+		self.maxMutationStep = 0
 
 	def length(self, ind):
 		length = 0
@@ -21,11 +22,17 @@ class TravelingSalespersonProblem:
 
 # Candidate solution representation
 class Individual:
-	def __init__(self, tsp):
+	def __init__(self, tsp, mutation_step, alpha=np.random.normal(0.2, 0.05)):
 		self.path = np.random.permutation(range(1, tsp.dimension[0]))
 		self.path = np.concatenate(([0], self.path))
-		self.alpha = 0.2
-		self.mutationStep = 4
+
+		self.alpha = alpha
+		self.alpha = max(self.alpha, 0.05)
+		self.alpha = min(self.alpha, 0.5)
+
+		self.mutationStep = mutation_step
+		self.mutationStep = max(self.mutationStep, 1)
+		self.mutationStep = min(self.mutationStep, tsp.maxMutationStep)
 
 	def print(self):
 		print("Ind Path: ", self.path)
@@ -33,22 +40,25 @@ class Individual:
 
 class Solver:
 	def __init__(self, tsp):
-		self.lambdaa = 1000			# Population size
-		self.mu = 500				# Offspring size
+		self.lambdaa = 200			# Population size
+		self.mu = 200				# Offspring size
 		# self.k = 14					# Tournament selection
-		self.k2 = 3					# K-top elimination
-		self.eliteSize = 0			# Number of elite candidate solutions that goes to next iteration
+		self.k2 = 4					# K-top elimination
+		self.eliteSize = 5			# Number of elite candidate solutions that goes to next iteration
 		self.intMax = 500			# Boundary of the domain, not intended to be changed.
 		self.nbIterations = 100			# Maximum number of iterations
 
+		self.defaultMutationStep = int(math.log(tsp.dimension[0], 5)**2)
+		tsp.maxMutationStep = self.defaultMutationStep * 2
+
 		self.population = np.empty(self.lambdaa, Individual)
 		for i in range(self.lambdaa):
-			self.population[i] = Individual(tsp)
+			self.population[i] = Individual(tsp, round(np.random.normal(self.defaultMutationStep, 1)))
 
 	# Rank candidates
 	def rankCandidates(self, tsp):
-		lengths = {}
 		candidates = self.population
+		# lengths = {}
 		# for i in range(0, len(candidates)):
 		# 	lengths[i] = tsp.length(candidates[i])
 
@@ -109,67 +119,77 @@ class Solver:
 
 		childPath = childP1Path + childP2Path
 
-		childInd = Individual(tsp)
+		childInd = Individual(tsp, round(mean([p1.mutationStep, p2.mutationStep])), mean([p1.alpha, p2.alpha]))
 		childInd.path = np.array(childPath)
+		# print(childInd.mutationStep)
 		# print(childPath)
 		return childInd
 
 	# PMX crossover
-	def recombineOld(self, tsp, p1, p2):
-		# https://www.youtube.com/watch?v=ZtaHg1C25Kk
-		a = random.randint(1, tsp.dimension[0] - 1)
-		b = random.randint(1, tsp.dimension[0] - 1)
+	# def recombineOld(self, tsp, p1, p2):
+	# 	# https://www.youtube.com/watch?v=ZtaHg1C25Kk
+	# 	a = random.randint(1, tsp.dimension[0] - 1)
+	# 	b = random.randint(1, tsp.dimension[0] - 1)
+	#
+	# 	if a > b:
+	# 		temp = a
+	# 		a = b
+	# 		b = temp
+	#
+	# 	childPath = np.zeros(tsp.dimension[0], dtype=int)
+	#
+	# 	# 1. Choose a random segment and copy it from p1 to child
+	# 	childPath[a:b] = p1.path[a:b]
+	#
+	# 	i = []
+	# 	j = []
+	#
+	# 	# 2. Starting from the first crossover point, look for elements in that swgment that have not been copied
+	# 	for x in range(a, b):
+	# 		if p2.path[x] not in p1.path[a:b]:
+	# 			i.append(p2.path[x])
+	#
+	# 	# 3. For each of these i, look in the offspring to see whtat element j has been copied in its place from p1
+	# 	for x in range(len(i)):
+	# 		index = np.where(p2.path == i[x])[0][0]
+	# 		j.append(p1.path[index])
+	#
+	# 		# 4. Place i into the position occuped by j in p2, since we will not be putting j there (as j is already in the offspring)
+	# 		index = np.where(p2.path == j[x])[0][0]
+	#
+	# 		if childPath[index] == 0:
+	# 			childPath[index] = i[x]
+	# 		else:
+	# 			# 5. If the place occuped by j in p2 has already been filled in the offspring by k, put i in the positioin occuped by k in p2
+	# 			kIndex = index
+	# 			while(True):
+	# 				k = p1.path[kIndex]
+	# 				kIndex = np.where(p2.path == k)[0][0]
+	# 				if childPath[kIndex] == 0:
+	# 					childPath[kIndex] = i[x]
+	# 					break
+	#
+	# 	# 6. Having dealt with the elements from the crossover segment, the rest of the offspring can be filled from p2
+	# 	for x in range(1, tsp.dimension[0]):
+	# 		if childPath[x] == 0:
+	# 			childPath[x] = p2.path[x]
+	#
+	# 	ind = Individual(tsp)
+	# 	ind.path = childPath
+	#
+	# 	return ind
 
-		if a > b:
-			temp = a
-			a = b
-			b = temp
-
-		childPath = np.zeros(tsp.dimension[0], dtype=int)
-
-		# 1. Choose a random segment and copy it from p1 to child
-		childPath[a:b] = p1.path[a:b]
-
-		i = []
-		j = []
-
-		# 2. Starting from the first crossover point, look for elements in that swgment that have not been copied
-		for x in range(a, b):
-			if p2.path[x] not in p1.path[a:b]:
-				i.append(p2.path[x])
-
-		# 3. For each of these i, look in the offspring to see whtat element j has been copied in its place from p1
-		for x in range(len(i)):
-			index = np.where(p2.path == i[x])[0][0]
-			j.append(p1.path[index])
-
-			# 4. Place i into the position occuped by j in p2, since we will not be putting j there (as j is already in the offspring)
-			index = np.where(p2.path == j[x])[0][0]
-
-			if childPath[index] == 0:
-				childPath[index] = i[x]
-			else:
-				# 5. If the place occuped by j in p2 has already been filled in the offspring by k, put i in the positioin occuped by k in p2
-				kIndex = index
-				while(True):
-					k = p1.path[kIndex]
-					kIndex = np.where(p2.path == k)[0][0]
-					if childPath[kIndex] == 0:
-						childPath[kIndex] = i[x]
-						break
-
-		# 6. Having dealt with the elements from the crossover segment, the rest of the offspring can be filled from p2
-		for x in range(1, tsp.dimension[0]):
-			if childPath[x] == 0:
-				childPath[x] = p2.path[x]
-
-		ind = Individual(tsp)
-		ind.path = childPath
-
-		return ind
-
-	def mutate(self, ind):
+	def mutate(self, ind, tsp):
 		if random.random() < ind.alpha:
+			# Mutate mutation parameters (self-adaptivity)
+			ind.alpha += np.random.normal(loc=0.0, scale=0.1)
+			ind.alpha = max(ind.alpha, 0.05)
+			ind.alpha = min(ind.alpha, 0.5)
+
+			ind.mutationStep += int(np.random.normal(loc=0.0, scale=1))
+			ind.mutationStep = max(ind.mutationStep, 1)
+			ind.mutationStep = min(ind.mutationStep, tsp.maxMutationStep)
+
 			# Inverse mutation: reverse order of sub path
 			i = random.randrange(1, len(ind.path) - ind.mutationStep-1)
 			j = i + ind.mutationStep
@@ -245,7 +265,7 @@ class r0722871:
 		solver = Solver(tsp)
 
 		iteration = 0
-		while(True):
+		while True:
 			# Your code here.
 
 			# Recombination
@@ -258,11 +278,11 @@ class r0722871:
 				p2 = selected[len(selected)-j-1]
 
 				offspring[j] = solver.recombine(tsp, p1, p2)
-				solver.mutate(offspring[j])
+				solver.mutate(offspring[j], tsp)
 
 			# Mutation
 			for j in range(solver.lambdaa):
-				solver.mutate(solver.population[j])
+				solver.mutate(solver.population[j], tsp)
 
 			# Elimination
 			solver.population = solver.eliminate(tsp, solver.population, offspring)
