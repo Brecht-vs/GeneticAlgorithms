@@ -1,7 +1,7 @@
 import math
 import random
 from statistics import mean
-
+from scipy.stats import expon
 import numpy as np
 import Reporter
 
@@ -10,7 +10,6 @@ class TravelingSalespersonProblem:
 	def __init__(self, distance_matrix):
 		self.cost = distance_matrix
 		self.dimension = distance_matrix.shape
-		self.maxMutationStep = 0
 
 	def length(self, ind):
 		length = 0
@@ -22,17 +21,21 @@ class TravelingSalespersonProblem:
 
 # Candidate solution representation
 class Individual:
-	def __init__(self, tsp, mutation_step, alpha=np.random.normal(0.2, 0.05)):
+	def __init__(self, tsp, alpha=np.random.normal(0.2, 0.05), k2=3):
 		self.path = np.random.permutation(range(1, tsp.dimension[0]))
 		self.path = np.concatenate(([0], self.path))
+
+		self.k2 = k2
+		self.k2 = max(self.k2, 2)
+		self.k2 = min(self.k2, 10)
 
 		self.alpha = alpha
 		self.alpha = max(self.alpha, 0.05)
 		self.alpha = min(self.alpha, 0.5)
 
-		self.mutationStep = mutation_step
-		self.mutationStep = max(self.mutationStep, 1)
-		self.mutationStep = min(self.mutationStep, tsp.maxMutationStep)
+		# self.mutationStep = mutation_step
+		# self.mutationStep = max(self.mutationStep, 1)
+		# self.mutationStep = min(self.mutationStep, tsp.maxMutationStep)
 
 	def print(self):
 		print("Ind Path: ", self.path)
@@ -43,17 +46,17 @@ class Solver:
 		self.lambdaa = 200			# Population size
 		self.mu = 200				# Offspring size
 		# self.k = 14					# Tournament selection
-		self.k2 = 4					# K-top elimination
+		self.k2 = 3					# K-top elimination
 		self.eliteSize = 5			# Number of elite candidate solutions that goes to next iteration
 		self.intMax = 500			# Boundary of the domain, not intended to be changed.
 		self.nbIterations = 100			# Maximum number of iterations
 
 		self.defaultMutationStep = int(math.log(tsp.dimension[0], 5)**2)
-		tsp.maxMutationStep = self.defaultMutationStep * 2
+		# tsp.maxMutationStep = self.defaultMutationStep * 2
 
 		self.population = np.empty(self.lambdaa, Individual)
 		for i in range(self.lambdaa):
-			self.population[i] = Individual(tsp, round(np.random.normal(self.defaultMutationStep, 1)))
+			self.population[i] = Individual(tsp)
 
 	# Rank candidates
 	def rankCandidates(self, tsp):
@@ -119,10 +122,11 @@ class Solver:
 
 		childPath = childP1Path + childP2Path
 
-		childInd = Individual(tsp, round(mean([p1.mutationStep, p2.mutationStep])), mean([p1.alpha, p2.alpha]))
+		childInd = Individual(tsp, mean([p1.alpha, p2.alpha]), round(mean([p1.k2, p2.k2])))
 		childInd.path = np.array(childPath)
 		# print(childInd.mutationStep)
 		# print(childPath)
+		print(childInd.k2)
 		return childInd
 
 	# PMX crossover
@@ -179,20 +183,27 @@ class Solver:
 	#
 	# 	return ind
 
-	def mutate(self, ind, tsp):
+	def mutate(self, ind):
 		if random.random() < ind.alpha:
+			# Mutate elimination parameter
+			ind.k2 += round(np.random.normal(loc=0.0, scale=1))
+			ind.k2 = max(ind.k2, 2)
+			ind.k2 = min(ind.k2, 10)
+
 			# Mutate mutation parameters (self-adaptivity)
 			ind.alpha += np.random.normal(loc=0.0, scale=0.1)
 			ind.alpha = max(ind.alpha, 0.05)
 			ind.alpha = min(ind.alpha, 0.5)
 
-			ind.mutationStep += int(np.random.normal(loc=0.0, scale=1))
-			ind.mutationStep = max(ind.mutationStep, 1)
-			ind.mutationStep = min(ind.mutationStep, tsp.maxMutationStep)
+			# ind.mutationStep += round(np.random.normal(loc=0.0, scale=1))
+			# ind.mutationStep = max(ind.mutationStep, 1)
+			# ind.mutationStep = min(ind.mutationStep, tsp.maxMutationStep)
+
+			mutationStep = int(np.around(expon.rvs(loc=self.defaultMutationStep, scale=1)))
 
 			# Inverse mutation: reverse order of sub path
-			i = random.randrange(1, len(ind.path) - ind.mutationStep-1)
-			j = i + ind.mutationStep
+			i = random.randrange(1, len(ind.path) - mutationStep-1)
+			j = i + mutationStep
 
 			ind.path[i:j] = ind.path[i:j][::-1]
 
@@ -278,11 +289,11 @@ class r0722871:
 				p2 = selected[len(selected)-j-1]
 
 				offspring[j] = solver.recombine(tsp, p1, p2)
-				solver.mutate(offspring[j], tsp)
+				solver.mutate(offspring[j])
 
 			# Mutation
 			for j in range(solver.lambdaa):
-				solver.mutate(solver.population[j], tsp)
+				solver.mutate(solver.population[j])
 
 			# Elimination
 			solver.population = solver.eliminate(tsp, solver.population, offspring)
@@ -315,4 +326,4 @@ class r0722871:
 
 test = r0722871()
 
-test.optimize('tour29.csv')
+test.optimize('tour250.csv')
