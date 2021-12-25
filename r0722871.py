@@ -22,9 +22,11 @@ class TravelingSalespersonProblem:
 # Candidate solution representation
 class Individual:
 	def __init__(self, tsp, alpha=np.random.normal(0.2, 0.05), k2=3):
+		# Initialize path
 		self.path = np.random.permutation(range(1, tsp.dimension[0]))
 		self.path = np.concatenate(([0], self.path))
 
+		# Initialize parameters
 		self.k2 = k2
 		self.k2 = max(self.k2, 2)
 		self.k2 = min(self.k2, 10)
@@ -54,6 +56,7 @@ class Solver:
 		self.defaultMutationStep = int(math.log(tsp.dimension[0], 5)**2)
 		# tsp.maxMutationStep = self.defaultMutationStep * 2
 
+		# Initialize population
 		self.population = np.empty(self.lambdaa, Individual)
 		for i in range(self.lambdaa):
 			self.population[i] = Individual(tsp)
@@ -123,10 +126,15 @@ class Solver:
 		childPath = childP1Path + childP2Path
 
 		childInd = Individual(tsp, mean([p1.alpha, p2.alpha]), round(mean([p1.k2, p2.k2])))
-		childInd.path = np.array(childPath)
+
+		childPath = np.array(childPath)
+		# Shift path so city 0 is in front
+		# childPath = np.roll(childPath, len(childPath) - np.where(childPath == 0)[0])
+		childInd.path = childPath
+
 		# print(childInd.mutationStep)
 		# print(childPath)
-		print(childInd.k2)
+		# print(childInd.k2)
 		return childInd
 
 	# PMX crossover
@@ -271,9 +279,15 @@ class r0722871:
 		file.close()
 
 		# Your code here.
-		distanceMatrix[distanceMatrix > 1e308] = 100000000
+		distanceMatrix[distanceMatrix > 1e308] = 100000000000
 		tsp = TravelingSalespersonProblem(distanceMatrix)
 		solver = Solver(tsp)
+		# for j in range(solver.lambdaa):
+		# 	for i in range(tsp.dimension[0] - 2):
+		# 		if tsp.cost[solver.population[j].path[i]][solver.population[j].path[i + 1]] > tsp.cost[solver.population[j].path[i + 1]][solver.population[j].path[i]]:
+		# 			temp = solver.population[j].path[i]
+		# 			solver.population[j].path[i] = solver.population[j].path[i + 1]
+		# 			solver.population[j].path[i + 1] = temp
 
 		iteration = 0
 		while True:
