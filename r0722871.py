@@ -1,3 +1,4 @@
+import copy
 import math
 import random
 from statistics import mean
@@ -16,6 +17,12 @@ class TravelingSalespersonProblem:
 		for i in range(self.dimension[0] - 1):
 			length += self.cost[ind.path[i]][ind.path[i + 1]]
 		length += self.cost[ind.path[self.dimension[0] - 1]][ind.path[0]]
+		return length
+
+	def subPathLength(self, path):
+		length = 0
+		for i in range(len(path) - 1):
+			length += self.cost[path[i]][path[i + 1]]
 		return length
 
 
@@ -43,6 +50,27 @@ class Individual:
 		print("Ind Path: ", self.path)
 
 
+def two_opt(ind, tsp):
+	path = list(ind.path)
+	best = path
+	for i in range(1, tsp.dimension[0] - 2):
+		# print('-----')
+		currentSubPathLength = tsp.subPathLength(best[i:i+2])
+		currentNewSubPathLength = tsp.subPathLength(path[(i+2) - 1:i - 1:-1])
+		for j in range(i + 2, tsp.dimension[0]):
+			newPath = path[:]
+			newPath[i:j] = path[j - 1:i - 1:-1]
+			currentSubPathLength += tsp.cost[path[j-1]][path[j]]
+			currentNewSubPathLength += tsp.cost[newPath[i]][newPath[i+1]]
+			# print(currentSubPathLength)
+			if currentNewSubPathLength < currentSubPathLength:
+				# print('a')
+				best = newPath
+			# else:
+			# 	print('b')
+	return np.array(best)
+
+
 class Solver:
 	def __init__(self, tsp):
 		self.lambdaa = 200			# Population size
@@ -60,6 +88,10 @@ class Solver:
 		self.population = np.empty(self.lambdaa, Individual)
 		for i in range(self.lambdaa):
 			self.population[i] = Individual(tsp)
+
+		for i in range(20):
+			print(i)
+			self.population[i].path = two_opt(self.population[i], tsp)
 
 	# Rank candidates
 	def rankCandidates(self, tsp):
@@ -308,6 +340,8 @@ class r0722871:
 			# Mutation
 			for j in range(solver.lambdaa):
 				solver.mutate(solver.population[j])
+				# if iteration > 500 and random.random() < 0.2:
+				# 	solver.population[j].path = two_opt(solver.population[j], tsp)
 
 			# Elimination
 			solver.population = solver.eliminate(tsp, solver.population, offspring)
