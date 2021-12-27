@@ -50,6 +50,22 @@ class Individual:
 		print("Ind Path: ", self.path)
 
 
+def nearest_neighbor(ind, tsp):
+	path = np.empty(tsp.dimension[0], dtype=int)
+	path[0] = 0
+	availableCities = list(range(1, tsp.dimension[0]))
+	for i in range(1, len(path)):
+		best = tsp.cost[path[i-1]][availableCities[0]]
+		nextCity = availableCities[0]
+		for j in availableCities:
+			if tsp.cost[path[i-1]][j] < best:
+				best = tsp.cost[path[i-1]][j]
+				nextCity = j
+		path[i] = nextCity
+		availableCities.remove(nextCity)
+	ind.path = path
+
+
 def two_opt(ind, tsp):
 	path = list(ind.path)
 	best = path
@@ -88,10 +104,11 @@ class Solver:
 		self.population = np.empty(self.lambdaa, Individual)
 		for i in range(self.lambdaa):
 			self.population[i] = Individual(tsp)
+			nearest_neighbor(self.population[i], tsp)
 
-		for i in range(20):
-			print(i)
-			self.population[i].path = two_opt(self.population[i], tsp)
+		# for i in range(200):
+		# 	print(i)
+		# 	self.population[i].path = two_opt(self.population[i], tsp)
 
 	# Rank candidates
 	def rankCandidates(self, tsp):
