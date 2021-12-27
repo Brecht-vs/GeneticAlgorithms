@@ -19,6 +19,13 @@ class TravelingSalespersonProblem:
 		length += self.cost[ind.path[self.dimension[0] - 1]][ind.path[0]]
 		return length
 
+	def pathLength(self, path):
+		length = 0
+		for i in range(self.dimension[0] - 1):
+			length += self.cost[path[i]][path[i + 1]]
+		length += self.cost[path[self.dimension[0] - 1]][path[0]]
+		return length
+
 	def subPathLength(self, path):
 		length = 0
 		for i in range(len(path) - 1):
@@ -87,6 +94,19 @@ def two_opt(ind, tsp):
 	return np.array(best)
 
 
+def lso_insert(ind, tsp):
+	path = list(ind.path)
+	best = path.copy()
+	index = random.randrange(1, tsp.dimension[0])
+	city = path.pop(index)
+	for i in range(1, tsp.dimension[0]):
+		copyPath = path.copy()
+		copyPath.insert(i, city)
+		if tsp.pathLength(copyPath) < tsp.pathLength(best):
+			best = copyPath
+	ind.path = np.array(best)
+
+
 class Solver:
 	def __init__(self, tsp):
 		self.lambdaa = 200			# Population size
@@ -103,8 +123,12 @@ class Solver:
 		# Initialize population
 		self.population = np.empty(self.lambdaa, Individual)
 		for i in range(self.lambdaa):
+			print(i)
 			self.population[i] = Individual(tsp)
-			nearest_neighbor(self.population[i], tsp)
+			# lso_insert(self.population[i], tsp)
+			# if random.random() < 0.05:
+			# 	nearest_neighbor(self.population[i], tsp)
+				# self.inversionMutation(self.population[i], 10)
 
 		# for i in range(200):
 		# 	print(i)
@@ -124,7 +148,7 @@ class Solver:
 		return combinedSorted
 
 	# k-Tournament selection
-	def select(self, ranked_population, iteration):
+	def select(self, ranked_population, iteration, tsp):
 		result = []
 
 		# Set up probability distribution function
@@ -135,6 +159,8 @@ class Solver:
 
 		# Elitism
 		for i in range(0, self.eliteSize):
+			two_opt(ranked_population[i], tsp)
+			lso_insert(ranked_population[i], tsp)
 			result.append(ranked_population[i])
 
 		# Select other candidates
@@ -185,6 +211,27 @@ class Solver:
 		# print(childPath)
 		# print(childInd.k2)
 		return childInd
+
+	# # NWOX crossover
+	# def recombine(self, tsp, p1, p2):
+	# 	n = tsp.dimension[0]
+	# 	a = random.randint(0, n)
+	# 	b = random.randint(a, n)
+	# 	x1, x2 = list(p1.path), list(p2.path)
+	# 	y1 = []
+	# 	for i in range(0, n):
+	# 		if x1[i] not in x2[a:b]:
+	# 			y1.append(x1[i])
+	# 	y1 = y1[:a] + x2[a:b] + y1[a:]
+	#
+	# 	childInd = Individual(tsp, mean([p1.alpha, p2.alpha]), round(mean([p1.k2, p2.k2])))
+	#
+	# 	childPath = np.array(y1)
+	# 	# Shift path so city 0 is in front
+	# 	# childPath = np.roll(childPath, len(childPath) - np.where(childPath == 0)[0])
+	# 	childInd.path = childPath
+	#
+	# 	return childInd
 
 	# PMX crossover
 	# def recombineOld(self, tsp, p1, p2):
@@ -259,10 +306,7 @@ class Solver:
 			mutationStep = int(np.around(expon.rvs(loc=self.defaultMutationStep, scale=1)))
 
 			# Inverse mutation: reverse order of sub path
-			i = random.randrange(1, len(ind.path) - mutationStep-1)
-			j = i + mutationStep
-
-			ind.path[i:j] = ind.path[i:j][::-1]
+			self.inversionMutation(ind, mutationStep)
 
 			# Randomly swap two elements
 			# for l in range(5):
@@ -273,6 +317,12 @@ class Solver:
 			# 	ind.path[i] = ind.path[j]
 			# 	ind.path[j] = temp
 		return
+
+	def inversionMutation(self, ind, mutation_step):
+		i = random.randrange(1, len(ind.path) - mutation_step - 1)
+		j = i + mutation_step
+
+		ind.path[i:j] = ind.path[i:j][::-1]
 
 	# lambda + mu elimination
 	def eliminateNew(self, tsp, population, offspring):
@@ -345,19 +395,21 @@ class r0722871:
 			# Recombination
 			offspring = np.empty(solver.mu, Individual)
 			rankedPopulation = solver.rankCandidates(tsp)
-			selected = solver.select(rankedPopulation, iteration)
+			selected = solver.select(rankedPopulation, iteration, tsp)
 
 			for j in range(solver.mu):
 				p1 = selected[j]
 				p2 = selected[len(selected)-j-1]
 
 				offspring[j] = solver.recombine(tsp, p1, p2)
+				# if random.random() < 0.05:
+				# 	lso_insert(offspring[j], tsp)
 				solver.mutate(offspring[j])
 
 			# Mutation
 			for j in range(solver.lambdaa):
 				solver.mutate(solver.population[j])
-				# if iteration > 500 and random.random() < 0.2:
+				# if random.random() < 0.1:
 				# 	solver.population[j].path = two_opt(solver.population[j], tsp)
 
 			# Elimination
