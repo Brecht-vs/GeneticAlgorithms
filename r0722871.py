@@ -107,6 +107,16 @@ def lso_insert(ind, tsp):
 	ind.path = np.array(best)
 
 
+def hamming_distance(ind1, ind2):
+	path1 = ind1.path
+	path2 = ind2.path
+	distance = 0
+	for i in range(len(path1)):
+		if path1[i] != path2[i]:
+			distance += 1
+	return distance
+
+
 class Solver:
 	def __init__(self, tsp):
 		self.lambdaa = 200			# Population size
@@ -123,12 +133,12 @@ class Solver:
 		# Initialize population
 		self.population = np.empty(self.lambdaa, Individual)
 		for i in range(self.lambdaa):
-			print(i)
 			self.population[i] = Individual(tsp)
 			# lso_insert(self.population[i], tsp)
 			# if random.random() < 0.05:
 			# 	nearest_neighbor(self.population[i], tsp)
 				# self.inversionMutation(self.population[i], 10)
+		nearest_neighbor(self.population[0], tsp)
 
 		# for i in range(200):
 		# 	print(i)
@@ -352,17 +362,27 @@ class Solver:
 	# lambda + mu k-tournament elimination
 	def eliminate(self, tsp, population, offspring):
 		combined = np.concatenate([population, offspring])
-
-		while combined.size > self.lambdaa:
+		combined = list(combined)
+		while len(combined) > self.lambdaa:
 
 			selected = np.random.choice(combined, self.k2, False)
 
 			values = list(map(lambda a: tsp.length(a), selected))
 
 			maxIndex = values.index(max(values))
+			print(maxIndex)
+			combined.pop(maxIndex)
+		return np.array(combined)
 
-			combined = np.delete(combined, maxIndex)
-		return combined
+	def crowding(self, ind, population, tsp):
+		closestInd = None
+		shortestDistance = tsp.dimension[0] + 1
+		inds = np.random.choice(population, self.k2, False)
+		for i in inds:
+			if hamming_distance(ind, i) < shortestDistance:
+				shortestDistance = hamming_distance(ind, i)
+				closestInd = i
+		return closestInd
 
 
 class r0722871:
@@ -443,4 +463,4 @@ class r0722871:
 
 test = r0722871()
 
-test.optimize('tour250.csv')
+test.optimize('tour100.csv')
