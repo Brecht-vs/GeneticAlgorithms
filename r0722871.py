@@ -5,6 +5,7 @@ from statistics import mean
 from scipy.stats import expon
 import numpy as np
 import Reporter
+from memory_profiler import profile
 
 
 class TravelingSalespersonProblem:
@@ -35,28 +36,18 @@ class TravelingSalespersonProblem:
 
 # Candidate solution representation
 class Individual:
-	def __init__(self, tsp, alpha=np.random.normal(0.2, 0.05), beta=np.random.normal(0.2, 0.05), k2=3):
+	def __init__(self, tsp, alpha=np.random.normal(0.2, 0.05), beta=np.random.normal(0.2, 0.05)):
 		# Initialize path
 		self.path = np.random.permutation(range(1, tsp.dimension[0]))
 		self.path = np.concatenate(([0], self.path))
 
-		# Initialize parameters
-		self.k2 = k2
-		self.k2 = max(self.k2, 2)
-		self.k2 = min(self.k2, 10)
-
 		self.alpha = alpha
 		self.alpha = max(self.alpha, 0.05)
 		self.alpha = min(self.alpha, 0.5)
-		# print(alpha)
 
 		self.beta = beta
 		self.beta = max(self.beta, 0.05)
 		self.beta = min(self.beta, 0.5)
-
-		# self.mutationStep = mutation_step
-		# self.mutationStep = max(self.mutationStep, 1)
-		# self.mutationStep = min(self.mutationStep, tsp.maxMutationStep)
 
 	def print(self):
 		print("Ind Path: ", self.path)
@@ -82,7 +73,6 @@ def two_opt(ind, tsp):
 	path = list(ind.path)
 	best = path
 	for i in range(1, tsp.dimension[0] - 2):
-		# print('-----')
 		currentSubPathLength = tsp.subPathLength(best[i:i+2])
 		currentNewSubPathLength = tsp.subPathLength(path[(i+2) - 1:i - 1:-1])
 		for j in range(i + 2, tsp.dimension[0]):
@@ -90,12 +80,8 @@ def two_opt(ind, tsp):
 			newPath[i:j] = path[j - 1:i - 1:-1]
 			currentSubPathLength += tsp.cost[path[j-1]][path[j]]
 			currentNewSubPathLength += tsp.cost[newPath[i]][newPath[i+1]]
-			# print(currentSubPathLength)
 			if currentNewSubPathLength < currentSubPathLength:
-				# print('a')
 				best = newPath
-			# else:
-			# 	print('b')
 	return np.array(best)
 
 
@@ -126,14 +112,11 @@ class Solver:
 	def __init__(self, tsp):
 		self.lambdaa = 200			# Population size
 		self.mu = 200				# Offspring size
-		# self.k = 14					# Tournament selection
-		self.k2 = 3					# K-top elimination
-		self.eliteSize = 5			# Number of elite candidate solutions that goes to next iteration
+		self.k2 = 3					# k-top elimination
+		self.eliteSize = 5			# Number of elite candidate solutions
 		self.intMax = 500			# Boundary of the domain, not intended to be changed.
-		self.nbIterations = 100			# Maximum number of iterations
 
-		self.defaultMutationStep = int(math.log(tsp.dimension[0], 5)**2)
-		# tsp.maxMutationStep = self.defaultMutationStep * 2
+		self.defaultMutationStep = int(math.log(tsp.dimension[0], 5)**2)	# Base value for mutation step size
 
 		# Initialize population
 		self.population = np.empty(self.lambdaa, Individual)
@@ -143,29 +126,18 @@ class Solver:
 			self.population[i] = Individual(tsp, alpha, beta)
 			if random.random() < 0.05:
 				lso_insert(self.population[i], tsp)
-			# 	nearest_neighbor(self.population[i], tsp)
-				# self.inversionMutation(self.population[i], 10)
 		if tsp.dimension[0] > 50:
 			nearest_neighbor(self.population[0], tsp)
-
-		# for i in range(200):
-		# 	print(i)
-		# 	self.population[i].path = two_opt(self.population[i], tsp)
 
 	# Rank candidates
 	def rankCandidates(self, tsp):
 		candidates = self.population
-		# lengths = {}
-		# for i in range(0, len(candidates)):
-		# 	lengths[i] = tsp.length(candidates[i])
-
 		l = list(candidates)
 		l.sort(key=lambda x: tsp.length(x))
 		combinedSorted = np.array(l)
-
 		return combinedSorted
 
-	# k-Tournament selection
+	# Rank-based selection
 	def select(self, ranked_population, iteration, tsp):
 		result = []
 
@@ -176,8 +148,6 @@ class Solver:
 			pdf.append(math.exp(a*(i - 1)))
 
 		# Elitism
-		# print(ranked_population[0].alpha)
-		# print(ranked_population[0].beta)
 		for i in range(0, self.eliteSize):
 			if random.random() < ranked_population[i].beta or tsp.dimension[0] < 50:
 				two_opt(ranked_population[i], tsp)
@@ -189,13 +159,13 @@ class Solver:
 		for i in range(0, len(ranked_population) - self.eliteSize):
 			myRandom = random.random()
 			for index in range(0, len(ranked_population)):
-				# print(pdf[index+20])
 				if myRandom < pdf[index]:
 					result.append(ranked_population.pop(index))
 					break
 
 		return result
 
+	# k-Tournament selection
 	# def selectOld(self, tsp):
 	# 	selected = np.random.choice(self.population, self.k, False)
 	#
@@ -214,7 +184,6 @@ class Solver:
 		geneB = 1 + int(random.random() * len(p1.path))
 		startGene = min(geneA, geneB)
 		endGene = max(geneA, geneB)
-		# print(geneA)
 
 		for i in range(startGene, endGene):
 			childP1Path.append(p1.path[i])
@@ -223,17 +192,10 @@ class Solver:
 
 		childPath = childP1Path + childP2Path
 
-		childInd = Individual(tsp, mean([p1.alpha, p2.alpha]), mean([p1.beta, p2.beta]), round(mean([p1.k2, p2.k2])))
-		# print(mean([p1.alpha, p2.alpha]))
+		childInd = Individual(tsp, mean([p1.alpha, p2.alpha]), mean([p1.beta, p2.beta]))
 
 		childPath = np.array(childPath)
-		# Shift path so city 0 is in front
-		# childPath = np.roll(childPath, len(childPath) - np.where(childPath == 0)[0])
 		childInd.path = childPath
-
-		# print(childInd.mutationStep)
-		# print(childPath)
-		# print(childInd.k2)
 		return childInd
 
 	# # NWOX crossover
@@ -313,10 +275,6 @@ class Solver:
 
 	def mutate(self, ind):
 		if random.random() < ind.alpha:
-			# Mutate elimination parameter (self-adaptivity)
-			ind.k2 += round(np.random.normal(loc=0.0, scale=1))
-			ind.k2 = max(ind.k2, 2)
-			ind.k2 = min(ind.k2, 10)
 
 			# Mutate mutation parameters (self-adaptivity)
 			ind.alpha += np.random.normal(loc=0.0, scale=0.1)
@@ -328,10 +286,7 @@ class Solver:
 			ind.beta = max(ind.beta, 0.05)
 			ind.beta = min(ind.beta, 0.5)
 
-			# ind.mutationStep += round(np.random.normal(loc=0.0, scale=1))
-			# ind.mutationStep = max(ind.mutationStep, 1)
-			# ind.mutationStep = min(ind.mutationStep, tsp.maxMutationStep)
-
+			# Mutation step size
 			mutationStep = int(np.around(expon.rvs(loc=self.defaultMutationStep, scale=1)))
 
 			# Inverse mutation: reverse order of sub path
@@ -357,25 +312,10 @@ class Solver:
 	def eliminateNew(self, tsp, population, offspring):
 		combined = np.concatenate([population, offspring])
 
-		# combinedSorted = combined[np.apply_along_axis(lambda l: tsp.length(l), 0, combined).argsort()]
-		# np.sorted(combined, key=lambda x: tsp.length(x))
-
 		l = list(combined)
 		l.sort(key=lambda x: tsp.length(x))
 		combinedSorted = np.array(l)
-		# combinedSorted = sorted(combined, key=lambda x: tsp.length(x))
 		result = combinedSorted[0:self.lambdaa]
-
-		# while combined.size > self.lambdaa:
-		#
-		# 	selected = np.random.choice(combined, self.k2, False)
-		#
-		# 	values = list(map(lambda a: tsp.length(a), selected))
-		#
-		# 	maxIndex = values.index(max(values))
-		#
-		# 	combined = np.delete(combined, maxIndex)
-
 		return result
 
 	# lambda + mu k-tournament elimination
@@ -394,8 +334,6 @@ class Solver:
 			# closestInd = self.crowding(selected[maxIndex], combined, tsp)
 			# combined.remove(closestInd)
 		combined.insert(0, best)
-		# print("tijdens elim: ", tsp.length(best))
-		# print("tijdens elim: ", tsp.length(combined[0]))
 		return np.array(combined)
 
 	def crowding(self, ind, population, tsp):
@@ -425,15 +363,9 @@ class r0722871:
 		distanceMatrix[distanceMatrix > 1e308] = 100000000000
 		tsp = TravelingSalespersonProblem(distanceMatrix)
 		solver = Solver(tsp)
-		# for j in range(solver.lambdaa):
-		# 	for i in range(tsp.dimension[0] - 2):
-		# 		if tsp.cost[solver.population[j].path[i]][solver.population[j].path[i + 1]] > tsp.cost[solver.population[j].path[i + 1]][solver.population[j].path[i]]:
-		# 			temp = solver.population[j].path[i]
-		# 			solver.population[j].path[i] = solver.population[j].path[i + 1]
-		# 			solver.population[j].path[i + 1] = temp
 
 		iteration = 0
-		currentBestSolution = 0
+		currentBestSolution = 1
 		counter = 0
 		while counter < 50 and iteration < 500:
 			# Your code here.
@@ -443,30 +375,21 @@ class r0722871:
 			rankedPopulation = solver.rankCandidates(tsp)
 			selected = solver.select(rankedPopulation, iteration, tsp)
 			best = copy.deepcopy(selected[0])
-			# print("voor elim", tsp.length(best))
-			# for i in selected:
-			# 	print("selected: ", i)
 
 			for j in range(solver.mu):
 				p1 = selected[j]
 				p2 = selected[len(selected)-j-1]
 
 				offspring.append(solver.recombine(tsp, p1, p2))
-				# if random.random() < 0.05:
-				# 	lso_insert(offspring[j], tsp)
 				solver.mutate(offspring[j])
 			offspring = np.array(offspring)
 
 			# Mutation
 			for j in range(solver.lambdaa):
 				solver.mutate(solver.population[j])
-				# if random.random() < 0.1:
-				# 	solver.population[j].path = two_opt(solver.population[j], tsp)
 
 			# Elimination
-			# print("vlak voor elim", tsp.length(best))
 			solver.population = solver.eliminate(tsp, solver.population, offspring, best)
-			# print("na elim", tsp.length(solver.population[0]))
 
 			# Calculate statistics
 			objectives = []
@@ -479,11 +402,11 @@ class r0722871:
 			bestIndex = objectives.index(bestObjective)
 			bestSolution = solver.population[bestIndex].path
 
-			if bestSolution / currentBestSolution < 0.01:
+			if currentBestSolution / bestObjective < 1.01:
 				counter += 1
 			else:
 				counter = 0
-			currentBestSolution = bestSolution
+			currentBestSolution = bestObjective
 
 			print(iteration, "Mean length: ", meanObjective, " Best fitnesses: ", bestObjective)
 			iteration += 1
@@ -501,5 +424,4 @@ class r0722871:
 
 
 test = r0722871()
-
-test.optimize('tour250.csv')
+test.optimize('tour29.csv')
