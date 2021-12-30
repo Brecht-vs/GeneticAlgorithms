@@ -141,8 +141,8 @@ class Solver:
 			alpha = np.random.normal(0.2, 0.05)
 			beta = np.random.normal(0.2, 0.05)
 			self.population[i] = Individual(tsp, alpha, beta)
-			# lso_insert(self.population[i], tsp)
-			# if random.random() < 0.05:
+			if random.random() < 0.05:
+				lso_insert(self.population[i], tsp)
 			# 	nearest_neighbor(self.population[i], tsp)
 				# self.inversionMutation(self.population[i], 10)
 		if tsp.dimension[0] > 50:
@@ -494,4 +494,4 @@ class r0722871:
 
 test = r0722871()
 
-test.optimize('tour1000.csv')
+test.optimize('tour250.csv')
