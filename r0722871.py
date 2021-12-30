@@ -433,7 +433,9 @@ class r0722871:
 		# 			solver.population[j].path[i + 1] = temp
 
 		iteration = 0
-		while True:
+		currentBestSolution = 0
+		counter = 0
+		while counter < 50 and iteration < 500:
 			# Your code here.
 
 			# Recombination
@@ -476,6 +478,12 @@ class r0722871:
 			bestObjective = np.min(objectives)
 			bestIndex = objectives.index(bestObjective)
 			bestSolution = solver.population[bestIndex].path
+
+			if bestSolution / currentBestSolution < 0.01:
+				counter += 1
+			else:
+				counter = 0
+			currentBestSolution = bestSolution
 
 			print(iteration, "Mean length: ", meanObjective, " Best fitnesses: ", bestObjective)
 			iteration += 1
