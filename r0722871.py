@@ -365,6 +365,7 @@ class r0722871:
 		solver = Solver(tsp)
 
 		iteration = 0
+		meanObjective = 0
 		currentBestSolution = 1
 		counter = 0
 		while counter < 50 and iteration < 500:
@@ -416,12 +417,25 @@ class r0722871:
 			#  - a 1D numpy array in the cycle notation containing the best solution
 			#    with city numbering starting from 0
 			timeLeft = self.reporter.report(meanObjective, bestObjective, bestSolution)
-			if timeLeft < 0:
-				break
+			# if timeLeft < 0:
+			# 	break
 
 		# Your code here.
-		return 0
+		return currentBestSolution, meanObjective
 
+
+# f1 = open("resultsBest.txt", "a")
+# f2 = open("resultsMean.txt", "a")
 
 test = r0722871()
 test.optimize('tour29.csv')
+
+# for i in range(600):
+# 	print(i)
+# 	result = test.optimize('tour29.csv')
+# 	f1.write(str(result[0]) + "\n")
+# 	f2.write(str(result[1]) + "\n")
+#
+#
+# f1.close()
+# f2.close()
